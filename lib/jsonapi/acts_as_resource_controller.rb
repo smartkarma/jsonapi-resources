@@ -8,8 +8,15 @@ module JSONAPI
     def self.included(base)
       base.extend ClassMethods
       base.include Callbacks
-      base.before_action :ensure_correct_media_type, only: [:create, :update, :create_relationship, :update_relationship]
-      base.before_action :ensure_valid_accept_media_type
+
+      if base.respond_to?(:before_action)
+        base.before_action(
+          :ensure_correct_media_type,
+          only: %i(create update create_relationship update_relationship)
+        )
+        base.before_action :ensure_valid_accept_media_type
+      end
+
       base.cattr_reader :server_error_callbacks
       base.define_jsonapi_resources_callbacks :process_operations
     end
