@@ -66,10 +66,14 @@ module JSONAPI
     end
 
     def process_request
-      @request = JSONAPI::RequestParser.new(params, context: context,
-                                            key_formatter: key_formatter,
-                                            server_error_callbacks: (self.class.server_error_callbacks || []))
-      unless @request.errors.empty?
+      @request = JSONAPI::RequestParser.new(
+        params,
+        context: context,
+        key_formatter: key_formatter,
+        server_error_callbacks: self.class.server_error_callbacks || []
+      )
+
+      if @request.errors.present?
         render_errors(@request.errors)
       else
         process_operations
@@ -87,23 +91,21 @@ module JSONAPI
     end
 
     def transaction
-      lambda { |&block|
-        ActiveRecord::Base.transaction do
-          block.yield
-        end
-      }
+      lambda do |&block|
+        ActiveRecord::Base.transaction { block.yield }
+      end
     end
 
     def rollback
-      lambda {
-        fail ActiveRecord::Rollback
-      }
+      lambda { raise ActiveRecord::Rollback }
     end
 
     def operation_dispatcher
-      @operation_dispatcher ||= JSONAPI::OperationDispatcher.new(transaction: transaction,
-                                                                 rollback: rollback,
-                                                                 server_error_callbacks: @request.server_error_callbacks)
+      @operation_dispatcher ||= JSONAPI::OperationDispatcher.new(
+        transaction: transaction,
+        rollback: rollback,
+        server_error_callbacks: @request.server_error_callbacks
+      )
     end
 
     private
@@ -125,8 +127,8 @@ module JSONAPI
     end
 
     def ensure_correct_media_type
-      unless request.content_type == JSONAPI::MEDIA_TYPE
-        fail JSONAPI::Exceptions::UnsupportedMediaTypeError.new(request.content_type)
+      unless request.media_type == JSONAPI::MEDIA_TYPE
+        raise JSONAPI::Exceptions::UnsupportedMediaTypeError.new(request.media_type)
       end
     rescue => e
       handle_exceptions(e)
@@ -134,7 +136,7 @@ module JSONAPI
 
     def ensure_valid_accept_media_type
       unless valid_accept_media_type?
-        fail JSONAPI::Exceptions::NotAcceptableError.new(request.accept)
+        raise JSONAPI::Exceptions::NotAcceptableError.new(request.accept)
       end
     rescue => e
       handle_exceptions(e)
@@ -144,9 +146,9 @@ module JSONAPI
       media_types = media_types_for('Accept')
 
       media_types.blank? ||
-          media_types.any? do |media_type|
-            (media_type == JSONAPI::MEDIA_TYPE || media_type == ALL_MEDIA_TYPES)
-          end
+        media_types.any? do |media_type|
+          (media_type == JSONAPI::MEDIA_TYPE || media_type == ALL_MEDIA_TYPES)
+        end
     end
 
     def media_types_for(header)
@@ -212,9 +214,9 @@ module JSONAPI
         content_type: JSONAPI::MEDIA_TYPE
       }
 
-      render_options[:location] = response_doc.contents[:data]["links"][:self] if (
-        response_doc.status == :created && response_doc.contents[:data].class != Array
-      )
+      if response_doc.status == :created && response_doc.contents[:data].class != Array 
+        render_options[:location] = response_doc.contents[:data]["links"][:self]
+      end
 
       render(render_options)
     end
