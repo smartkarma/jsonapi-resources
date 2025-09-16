@@ -205,43 +205,30 @@ module ActionDispatch
 
         def jsonapi_related_resource(*relationship)
           source = JSONAPI::Resource.resource_for(resource_type_with_module_prefix)
-          options = relationship.extract_options!.dup
-
           relationship_name = relationship.first
           relationship = source._relationships[relationship_name]
-
           formatted_relationship_name = format_route(relationship.name)
-
-          if relationship.polymorphic?
-            options[:controller] ||= relationship.class_name.underscore.pluralize
-          else
-            related_resource = JSONAPI::Resource.resource_for(resource_type_with_module_prefix(relationship.class_name.underscore.pluralize))
-            options[:controller] ||= (related_resource._controller || related_resource._type).to_s
-          end
+          related_controller = relationship.class_name.underscore.pluralize
 
           match "#{formatted_relationship_name}",
-                controller: options[:controller],
+                controller: related_controller,
                 relationship: relationship.name,
-                source: resource_type_with_module_prefix(source._related_resource_type || source._type),
+                source: resource_type_with_module_prefix(source._type),
                 action: 'get_related_resource',
                 via: [:get]
         end
 
         def jsonapi_related_resources(*relationship)
           source = JSONAPI::Resource.resource_for(resource_type_with_module_prefix)
-          options = relationship.extract_options!.dup
-
           relationship_name = relationship.first
           relationship = source._relationships[relationship_name]
-
           formatted_relationship_name = format_route(relationship.name)
-          related_resource = JSONAPI::Resource.resource_for(resource_type_with_module_prefix(relationship.class_name.underscore))
-          options[:controller] ||= (related_resource._controller || related_resource._type).to_s
+          related_controller = relationship.class_name.underscore.pluralize
 
           match "#{formatted_relationship_name}",
-                controller: options[:controller],
+                controller: related_controller,
                 relationship: relationship.name,
-                source: resource_type_with_module_prefix(source._related_resource_type || source._type),
+                source: resource_type_with_module_prefix(source._type),
                 action: 'get_related_resources',
                 via: [:get]
         end

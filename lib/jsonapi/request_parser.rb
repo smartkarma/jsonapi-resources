@@ -151,45 +151,47 @@ module JSONAPI
 
       # Extract the fields for each type from the fields parameters
       if fields.is_a?(ActionController::Parameters)
-        fields.each do |field, value|
-          resource_fields = value.split(',') unless value.nil? || value.empty?
-          extracted_fields[field] = resource_fields
+        # Validate the fields
+        fields.each do |type, value|
+          values = value.split(',') unless value.nil? || value.empty?
+          underscored_type = unformat_key(type)
+
+          begin
+            if type != format_key(type)
+              fail JSONAPI::Exceptions::InvalidResource.new(type)
+            end
+            type_resource = Resource.resource_for(@resource_klass.module_path + underscored_type.to_s)
+          rescue NameError
+            @errors.concat(JSONAPI::Exceptions::InvalidResource.new(type).errors)
+          rescue JSONAPI::Exceptions::InvalidResource => e
+            @errors.concat(e.errors)
+          end
+
+          if !type_resource.nil? && type_resource._type
+            extracted_fields[type] = []
+          end
+
+          if type_resource.nil?
+            @errors.concat(JSONAPI::Exceptions::InvalidResource.new(type).errors)
+          else
+            extracted_fields[type_resource._type] = []
+
+            unless values.nil?
+              valid_fields = type_resource.fields.collect { |key| format_key(key) }
+              values.each do |field|
+                if valid_fields.include?(field)
+                  extracted_fields[type_resource._type].push unformat_key(field)
+                else
+                  @errors.concat(JSONAPI::Exceptions::InvalidField.new(type, field).errors)
+                end
+              end
+            else
+              @errors.concat(JSONAPI::Exceptions::InvalidField.new(type, 'nil').errors)
+            end
+          end
         end
       else
         fail JSONAPI::Exceptions::InvalidFieldFormat.new
-      end
-
-      # Validate the fields
-      extracted_fields.each do |type, values|
-        underscored_type = unformat_key(type)
-        extracted_fields[type] = []
-        begin
-          if type != format_key(type)
-            fail JSONAPI::Exceptions::InvalidResource.new(type)
-          end
-          type_resource = Resource.resource_for(@resource_klass.module_path + underscored_type.to_s)
-        rescue NameError
-          @errors.concat(JSONAPI::Exceptions::InvalidResource.new(type).errors)
-        rescue JSONAPI::Exceptions::InvalidResource => e
-          @errors.concat(e.errors)
-        end
-
-        if type_resource.nil?
-          @errors.concat(JSONAPI::Exceptions::InvalidResource.new(type).errors)
-        else
-          unless values.nil?
-            valid_fields = type_resource.fields.collect { |key| format_key(key) }
-            values.each do |field|
-              if valid_fields.include?(field)
-                extracted_fields[type].push unformat_key(field)
-              else
-                @errors.concat(JSONAPI::Exceptions::InvalidField.new(type, field).errors)
-              end
-            end
-          else
-            @errors.concat(JSONAPI::Exceptions::InvalidField.new(type, 'nil').errors)
-          end
-        end
       end
 
       @fields = extracted_fields.deep_transform_keys { |key| unformat_key(key) }

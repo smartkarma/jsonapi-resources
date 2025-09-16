@@ -453,7 +453,7 @@ module JSONAPI
         end
       end
 
-      attr_accessor :_attributes, :_relationships, :_allowed_filters, :_type, :_paginator, :_model_hints, :_controller, :_related_resource_type
+      attr_accessor :_attributes, :_relationships, :_allowed_filters, :_type, :_paginator, :_model_hints
 
       def create(context)
         new(create_model, context)
