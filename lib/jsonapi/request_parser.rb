@@ -266,7 +266,7 @@ module JSONAPI
         fail JSONAPI::Exceptions::ParametersNotAllowed.new([:sort])
       end
 
-      @sort_criteria = CSV.parse_line(URI.unescape(sort_criteria)).collect do |sort|
+      @sort_criteria = CSV.parse_line(CGI.unescape(sort_criteria)).collect do |sort|
         if sort.start_with?('-')
           sort_criteria = { field: unformat_key(sort[1..-1]).to_s }
           sort_criteria[:direction] = :desc
