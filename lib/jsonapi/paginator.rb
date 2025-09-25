@@ -142,6 +142,8 @@ class PagedPaginator < JSONAPI::Paginator
 
   def links_page_params(options = {})
     record_count = options[:record_count]
+    return if record_count.nil?
+
     page_count = calculate_page_count(record_count)
 
     links_page_params = {}
